@@ -4,7 +4,7 @@
 int main() {
     // Test 1: Initialize memory allocator with a valid size and BEST_FIT algorithm
     printf("Test 1: Initializing memory allocator\n");
-    if (umeminit(4096, WORST_FIT) == 0) { // size of heap is 4096 and it is using the best fit algorithm
+    if (umeminit(16384, BEST_FIT) == 0) { // size of heap is 4096 and it is using the best fit algorithm
         printf("Initialization successful.\n");
     } else {
         printf("Initialization failed.\n");
@@ -12,8 +12,9 @@ int main() {
     }
 
     // Test 2: Allocate a memory block and check if it succeeds
-    printf("Test 2: Allocating a memory block of 16 bytes\n");
-    void *ptr1 = umalloc(16);
+    
+    printf("Test 2: Allocating a memory block of 1 bytes\n");
+    void *ptr1 = umalloc(1);
     if (ptr1 != NULL) {
         printf("Allocation successful. Pointer: %p\n", ptr1);
         
@@ -21,7 +22,7 @@ int main() {
         printf("Allocation failed.\n");
     }
 	    umemstats();
-	
+    
     // Test 3: Allocate another memory block and check if it succeeds
     printf("Test 3: Allocating a memory block of 32 bytes\n");
     void *ptr2 = umalloc(32);
@@ -40,6 +41,16 @@ int main() {
         printf("Free failed.\n");
     }
         umemstats();
+
+     // Test 3: Allocate another memory block and check if it succeeds
+    printf("Test 4.5: Allocating a memory block of 64 bytes\n");
+    void *ptr5 = umalloc(64);
+    if (ptr5 != NULL) {
+        printf("Allocation successful. Pointer: %p\n", ptr5);
+    } else {
+        printf("Allocation failed.\n");
+    }
+    	umemstats();
 /*
     // Test 5: Attempt double-free on the same block (should detect and handle it)
     printf("Test 5: Attempting double-free on the first memory block\n");
@@ -56,6 +67,8 @@ int main() {
     } else {
         printf("Reallocation failed.\n");
     }
+
+    umemstats();
 
     // Test 7: Free the reallocated block
     printf("Test 7: Freeing the reallocated block\n");
@@ -74,6 +87,8 @@ int main() {
         printf("Allocation failed.\n");
     }
 
+    
+
     // Test 9: Print memory statistics
     printf("Test 9: Printing memory statistics\n");
     umemstats();
@@ -83,4 +98,5 @@ int main() {
 
     printf("All tests completed.\n");
     return 0;
+    
 }

@@ -6,14 +6,14 @@
 #include <unistd.h>    // For getpagesize
 
 // Global Variable initialization
-void *base_ptr = NULL; //base pointer for the heap
+void *base_ptr = NULL; // Base pointer for the heap
 int allocAlgo = 0;
 size_t heapSize = 0;
 node_t *freeList = NULL;
-static node_t *lastAlloc = NULL;  // for NEXT FIT
+static node_t *lastAlloc = NULL;  // For NEXT FIT
 size_t total_allocations = 0;     // Tracks total number of allocations
 size_t total_deallocations = 0;   // Tracks total number of deallocations
-size_t allocated_memory = 0;
+size_t allocated_memory = 0;      // Keeps track of allocated memory
 
 #define ALIGNMENT 8  // 8-byte alignment for allocations
 
@@ -29,7 +29,7 @@ size_t calculateFragmentation();
 
 int umeminit(size_t sizeOfRegion, int allocationAlgo) {
     if (base_ptr != NULL || sizeOfRegion <= 0) {
-        return -1;  // Return failure if already initialized or if size is invalid
+        return -1;  // Return failure if already initialized
     }
 
     // Request memory using mmap
@@ -44,7 +44,7 @@ int umeminit(size_t sizeOfRegion, int allocationAlgo) {
 
     // Initialize the free list to cover the entire region
     freeList = (node_t *)base_ptr;
-    freeList->size = sizeOfRegion - sizeof(header_t); // Leave space for header
+    freeList->size = sizeOfRegion - sizeof(header_t); // Take space for header
     freeList->next = NULL; // Only one big block initially
 
     return 0;
@@ -57,9 +57,11 @@ void *umalloc(size_t size) {
 
     // Align requested size to 8 bytes and add header size
     size = (size + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
-    size += sizeof(header_t);  // Account for header in allocation size
+    size += sizeof(header_t);  // Include header size in allocation
 
     void *allocated_block = NULL;
+    node_t *prev = NULL, *current = freeList;
+
     switch (allocAlgo) {
         case BEST_FIT:
             allocated_block = best_fit(size);
@@ -79,14 +81,39 @@ void *umalloc(size_t size) {
     }
 
     if (allocated_block == NULL) {
-        return NULL;  // No suitable block found
+        return NULL;  // Not enough contiguous space
     }
 
+    // Find and split the free block
+    while (current) {
+        if ((void *)((char *)current + sizeof(header_t)) == allocated_block) {
+            if (current->size > size) {
+                node_t *new_free_block = (node_t *)((char *)current + size);
+                new_free_block->size = current->size - size;
+                new_free_block->next = current->next;
 
-    
-    // Mark block as allocated and increment total allocations
+                if (prev) {
+                    prev->next = new_free_block;
+                } else {
+                    freeList = new_free_block;
+                }
+            } else {
+                if (prev) {
+                    prev->next = current->next;
+                } else {
+                    freeList = current->next;
+                }
+            }
+            break;
+        }
+        prev = current;
+        current = current->next;
+    }
+
+    // Mark block as allocated and include the header size in statistics
     blockAllocated(allocated_block, size - sizeof(header_t));
-    total_allocations++; 
+    allocated_memory += size;  // Include the entire block size (header + user data)
+    total_allocations++;
     return (void *)((char *)allocated_block + sizeof(header_t));  // Return pointer after header
 }
 
@@ -109,13 +136,12 @@ int ufree(void *ptr) {
         current = current->next;
     }
 
-    allocated_memory -= header->size;  // Decrement allocated memory
+    allocated_memory -= header->size + sizeof(header_t);  // Account for entire block size
     addToFreeList((node_t *)header);
     coalesce();
     total_deallocations++;
     return 1;
 }
-
 
 void *urealloc(void *ptr, size_t size) {
     if (ptr == NULL) return umalloc(size);
@@ -143,7 +169,7 @@ void *urealloc(void *ptr, size_t size) {
 }
 
 void umemstats(void) {
-    size_t free_memory = freeList->size - allocated_memory;
+    size_t free_memory = heapSize - allocated_memory;  // Correctly calculate free memory
     size_t fragmentation = calculateFragmentation();
 
     printumemstats((int)total_allocations, 
@@ -225,7 +251,6 @@ void blockAllocated(void *block, size_t size) {
     header_t *header = (header_t *)block;
     header->magic = MAGIC;
     header->size = size;
-    allocated_memory += size;  // Increment allocated memory
 }
 
 void coalesce() {
@@ -247,6 +272,7 @@ void addToFreeList(node_t *block) {
     node_t *current = freeList;
     node_t *prev = NULL;
 
+    // Insert the block back into the free list sorted by address
     while (current && current < block) {
         prev = current;
         current = current->next;
@@ -258,6 +284,8 @@ void addToFreeList(node_t *block) {
     } else {
         freeList = block;
     }
+
+    coalesce();  // Coalesce adjacent free blocks to reduce fragmentation
 }
 
 size_t calculateFragmentation() {
