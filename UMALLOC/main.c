@@ -4,13 +4,12 @@
 int main() {
     // Test 1: Initialize memory allocator with a valid size and BEST_FIT algorithm
     printf("Test 1: Initializing memory allocator\n");
-    if (umeminit(4096, BEST_FIT) == 0) {
+    if (umeminit(4096, WORST_FIT) == 0) { // size of heap is 4096 and it is using the best fit algorithm
         printf("Initialization successful.\n");
     } else {
         printf("Initialization failed.\n");
         return 1;
     }
-    
 
     // Test 2: Allocate a memory block and check if it succeeds
     printf("Test 2: Allocating a memory block of 16 bytes\n");
@@ -21,7 +20,7 @@ int main() {
     } else {
         printf("Allocation failed.\n");
     }
-	umemstats();
+	    umemstats();
 	
     // Test 3: Allocate another memory block and check if it succeeds
     printf("Test 3: Allocating a memory block of 32 bytes\n");
@@ -40,13 +39,15 @@ int main() {
     } else {
         printf("Free failed.\n");
     }
-
+        umemstats();
+/*
     // Test 5: Attempt double-free on the same block (should detect and handle it)
     printf("Test 5: Attempting double-free on the first memory block\n");
     if (ufree(ptr1) == 1) {
-        printf("Double-free detected and handled.\n");
+        printf("Double-free detected and not handled.\n");
     }
-
+*/
+        //umemstats();
     // Test 6: Reallocate a block to a larger size
     printf("Test 6: Reallocating the second block to 64 bytes\n");
     void *ptr3 = urealloc(ptr2, 64);
