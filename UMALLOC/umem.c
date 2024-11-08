@@ -15,7 +15,7 @@ size_t total_allocations = 0;     // Tracks total number of allocations
 size_t total_deallocations = 0;   // Tracks total number of deallocations
 size_t allocated_memory = 0;      // Keeps track of allocated memory
 
-#define ALIGNMENT 8  // 8-byte alignment for allocations
+const int ALIGNMENT = 8;  // 8-byte alignment constant for allocations
 
 // Prototypes for helper functions
 void *best_fit(size_t size);
@@ -26,6 +26,7 @@ void blockAllocated(void *block, size_t size);
 void addToFreeList(node_t *block);
 void coalesce();
 size_t calculateFragmentation();
+
 
 int umeminit(size_t sizeOfRegion, int allocationAlgo) {
     if (base_ptr != NULL || sizeOfRegion <= 0) {
@@ -45,7 +46,7 @@ int umeminit(size_t sizeOfRegion, int allocationAlgo) {
     // Initialize the free list to cover the entire region
     freeList = (node_t *)base_ptr;
     freeList->size = sizeOfRegion - sizeof(header_t); // Take space for header
-    freeList->next = NULL; // Only one big block initially
+    freeList->next = NULL; 
 
     return 0;
 }
@@ -61,8 +62,9 @@ void *umalloc(size_t size) {
 
     void *allocated_block = NULL;
     node_t *prev = NULL, *current = freeList;
+    
 
-    switch (allocAlgo) {
+    switch (allocAlgo) { // Choose the algorithm to be run for the allocated size
         case BEST_FIT:
             allocated_block = best_fit(size);
             break;
@@ -79,7 +81,11 @@ void *umalloc(size_t size) {
             fprintf(stderr, "Error: Invalid allocation algorithm.\n");
             return NULL;
     }
-
+    /* Test case to see if there is a recognized algorith
+    if (allocated_block != NULL) {
+    printf("Selected block at address: %p, with size: %zu for requested size: %zu\n", allocated_block, size, size - sizeof(header_t));
+    }
+    */
     if (allocated_block == NULL) {
         return NULL;  // Not enough contiguous space
     }
@@ -112,7 +118,7 @@ void *umalloc(size_t size) {
 
     // Mark block as allocated and include the header size in statistics
     blockAllocated(allocated_block, size - sizeof(header_t));
-    allocated_memory += size;  // Include the entire block size (header + user data)
+    allocated_memory += size;  // Include the entire block size (header + size request)
     total_allocations++;
     return (void *)((char *)allocated_block + sizeof(header_t));  // Return pointer after header
 }
@@ -122,7 +128,7 @@ int ufree(void *ptr) {
 
     header_t *header = (header_t *)((char *)ptr - sizeof(header_t));
 
-    if (header->magic != MAGIC) {
+    if (header->magic != MAGIC) { // Validation of the magic number
         fprintf(stderr, "Error: Memory corruption detected at block %p\n", ptr);
         exit(1);
     }
@@ -259,7 +265,10 @@ void coalesce() {
     while (current && current->next) {
         node_t *next = current->next;
 
+        // Check if current and next blocks are physically adjacent in memory
         if ((char *)current + sizeof(header_t) + current->size == (char *)next) {
+
+            // Coalesce by combining sizes and linking to the next's next block
             current->size += sizeof(header_t) + next->size;
             current->next = next->next;
         } else {
@@ -268,9 +277,15 @@ void coalesce() {
     }
 }
 
+
+
 void addToFreeList(node_t *block) {
     node_t *current = freeList;
     node_t *prev = NULL;
+
+    // Enforce 8-byte alignment for the free block
+    uintptr_t aligned_address = ((uintptr_t)block + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
+    block = (node_t *)aligned_address;
 
     // Insert the block back into the free list sorted by address
     while (current && current < block) {
@@ -293,13 +308,27 @@ size_t calculateFragmentation() {
     size_t fragmentedFree = 0;
     node_t *current = freeList;
 
+    // Find the largest free block
+    size_t largestFreeBlock = 0;
     while (current) {
+        if (current->size > largestFreeBlock) {
+            largestFreeBlock = current->size;
+        }
         totalFree += current->size;
-        if (current->size < totalFree / 2) {
+        current = current->next;
+    }
+
+    // Define small blocks as those less than half of the largest free block (as in the prompt)
+    current = freeList;
+    while (current) {
+        if (current->size < largestFreeBlock / 2) {
             fragmentedFree += current->size;
         }
         current = current->next;
     }
 
-    return (totalFree == 0) ? 0 : (fragmentedFree * 100) / totalFree;
+    // Calculate fragmentation percentage
+    return (totalFree == 0) ? 0 : (fragmentedFree * 100) / totalFree; // this is a ternary operator, found on stack overflow
 }
+
+
