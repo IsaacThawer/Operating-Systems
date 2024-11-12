@@ -32,6 +32,10 @@ int umeminit(size_t sizeOfRegion, int allocationAlgo) {
     if (base_ptr != NULL || sizeOfRegion <= 0) {
         return -1;  // Return failure if already initialized
     }
+    
+    // getting system page size and rounding it
+    size_t pageSize = getpagesize();
+    sizeOfRegion = ((sizeOfRegion + pageSize - 1) / pageSize) * pageSize;
 
     // Request memory using mmap
     base_ptr = mmap(NULL, sizeOfRegion, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
